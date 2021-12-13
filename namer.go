@@ -2,6 +2,7 @@ package gorm_dm8
 
 import (
 	"gorm.io/gorm/schema"
+	"log"
 	"strings"
 )
 
@@ -14,10 +15,12 @@ func ConvertNameToFormat(x string) string {
 }
 
 func (n Namer) TableName(table string) (name string) {
+	log.Println(ConvertNameToFormat(n.NamingStrategy.TableName(table)))
 	return ConvertNameToFormat(n.NamingStrategy.TableName(table))
 }
 
 func (n Namer) ColumnName(table, column string) (name string) {
+	log.Println(ConvertNameToFormat(n.NamingStrategy.ColumnName(table, column)))
 	return ConvertNameToFormat(n.NamingStrategy.ColumnName(table, column))
 }
 
@@ -30,6 +33,7 @@ func (n Namer) RelationshipFKName(relationship schema.Relationship) (name string
 }
 
 func (n Namer) CheckerName(table, column string) (name string) {
+	log.Println(ConvertNameToFormat(n.NamingStrategy.CheckerName(table, column)))
 	return ConvertNameToFormat(n.NamingStrategy.CheckerName(table, column))
 }
 
