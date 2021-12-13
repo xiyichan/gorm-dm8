@@ -131,7 +131,7 @@ func (d Dialector) QuoteTo(writer clause.Writer, str string) {
 		case '`':
 			continuousBacktick++
 			if continuousBacktick == 2 {
-				writer.WriteString("``")
+				writer.WriteString("\"\"")
 				continuousBacktick = 0
 			}
 		case '.':
@@ -139,13 +139,13 @@ func (d Dialector) QuoteTo(writer clause.Writer, str string) {
 				shiftDelimiter = 0
 				underQuoted = false
 				continuousBacktick = 0
-				writer.WriteString("`")
+				writer.WriteString("\"")
 			}
 			writer.WriteByte(v)
 			continue
 		default:
 			if shiftDelimiter-continuousBacktick <= 0 && !underQuoted {
-				writer.WriteByte('`')
+				writer.WriteByte('"')
 				underQuoted = true
 				if selfQuoted = continuousBacktick > 0; selfQuoted {
 					continuousBacktick -= 1
@@ -153,7 +153,7 @@ func (d Dialector) QuoteTo(writer clause.Writer, str string) {
 			}
 
 			for ; continuousBacktick > 0; continuousBacktick -= 1 {
-				writer.WriteString("``")
+				writer.WriteString("\"\"")
 			}
 
 			writer.WriteByte(v)
@@ -162,9 +162,9 @@ func (d Dialector) QuoteTo(writer clause.Writer, str string) {
 	}
 
 	if continuousBacktick > 0 && !selfQuoted {
-		writer.WriteString("``")
+		writer.WriteString("\"\"")
 	}
-	writer.WriteString("`")
+	writer.WriteString("\"")
 }
 
 var numericPlaceholder = regexp.MustCompile("@p(\\d+)")
