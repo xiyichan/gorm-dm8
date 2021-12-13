@@ -1,6 +1,10 @@
 package gorm_dm8
 
-import "gorm.io/gorm/migrator"
+import (
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"gorm.io/gorm/migrator"
+)
 
 type Migrator struct {
 	migrator.Migrator
@@ -119,3 +123,35 @@ type Migrator struct {
 //		).Error
 //	})
 //}
+
+func (m Migrator) RenameIndex(value interface{}, oldName, newName string) error {
+
+	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
+		err := m.DropIndex(value, oldName)
+		if err != nil {
+			return err
+		}
+
+		if idx := stmt.Schema.LookIndex(newName); idx == nil {
+			if idx = stmt.Schema.LookIndex(oldName); idx != nil {
+				opts := m.BuildIndexOptions(idx.Fields, stmt)
+				values := []interface{}{clause.Column{Name: newName}, clause.Table{Name: stmt.Table}, opts}
+
+				createIndexSQL := "CREATE "
+				if idx.Class != "" {
+					createIndexSQL += idx.Class + " "
+				}
+				createIndexSQL += "INDEX ? ON ??"
+
+				if idx.Type != "" {
+					createIndexSQL += " USING " + idx.Type
+				}
+
+				return m.DB.Exec(createIndexSQL, values...).Error
+			}
+		}
+
+		return m.CreateIndex(value, newName)
+	})
+
+}
