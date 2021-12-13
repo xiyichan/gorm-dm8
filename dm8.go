@@ -224,7 +224,7 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 		return sqlType
 	case schema.Float:
 		if field.Precision > 0 {
-			return fmt.Sprintf("dec(%d, %d)", field.Precision, field.Scale)
+			return fmt.Sprintf("DECIMAL(%d, %d)", field.Precision, field.Scale)
 		}
 
 		if field.Size <= 32 {
