@@ -6,6 +6,7 @@ import (
 
 type Migrator struct {
 	migrator.Migrator
+	Dialector
 }
 
 func (m Migrator) GetTables() (tableList []string, err error) {

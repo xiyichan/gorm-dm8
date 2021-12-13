@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm/schema"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 type Config struct {
@@ -22,19 +21,19 @@ type Config struct {
 	Conn              gorm.ConnPool
 }
 
-type d struct {
+type Dialector struct {
 	*Config
 }
 
-func (d d) Name() string {
+func (d Dialector) Name() string {
 	return "dm"
 }
 
-func (d d) DummyTableName() string {
+func (d Dialector) DummyTableName() string {
 	return "DUAL"
 }
 
-func (d d) Initialize(db *gorm.DB) (err error) {
+func (d Dialector) Initialize(db *gorm.DB) (err error) {
 
 	// register callbacks
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
@@ -58,7 +57,7 @@ func (d d) Initialize(db *gorm.DB) (err error) {
 	return
 }
 
-func (d d) ClauseBuilders() map[string]clause.ClauseBuilder {
+func (d Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
 		"LIMIT": func(c clause.Clause, builder clause.Builder) {
 			if limit, ok := c.Expression.(clause.Limit); ok {
@@ -94,62 +93,87 @@ func (d d) ClauseBuilders() map[string]clause.ClauseBuilder {
 }
 
 func Open(dsn string) gorm.Dialector {
-	return &d{Config: &Config{DSN: dsn}}
+	return &Dialector{Config: &Config{DSN: dsn}}
 }
 
 func New(config Config) gorm.Dialector {
-	return &d{Config: &config}
+	return &Dialector{Config: &config}
 }
 
-func (d d) DefaultValueOf(field *schema.Field) clause.Expression {
-	return clause.Expr{SQL: "NULL"}
+func (d Dialector) DefaultValueOf(field *schema.Field) clause.Expression {
+	return clause.Expr{SQL: "DEFAULT"}
 }
 
-func (d d) Migrator(db *gorm.DB) gorm.Migrator {
-	return Migrator{migrator.Migrator{Config: migrator.Config{
-		DB:                          db,
-		Dialector:                   d,
-		CreateIndexAfterCreateTable: true,
-	}}}
-}
-func (d d) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v interface{}) {
-	writer.WriteString("@p")
-	writer.WriteString(strconv.Itoa(len(stmt.Vars)))
-}
-
-func (d d) QuoteTo(writer clause.Writer, str string) {
-	writer.WriteByte('"')
-	if strings.Contains(str, ".") {
-		for idx, str := range strings.Split(str, ".") {
-			if idx > 0 {
-				writer.WriteString(`."`)
-			}
-			writer.WriteString(str)
-			writer.WriteByte('"')
-		}
-	} else {
-		writer.WriteString(str)
-		writer.WriteByte('"')
+func (d Dialector) Migrator(db *gorm.DB) gorm.Migrator {
+	return Migrator{
+		Migrator: migrator.Migrator{
+			Config: migrator.Config{
+				DB:        db,
+				Dialector: d,
+			},
+		},
+		Dialector: d,
 	}
+}
+func (d Dialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v interface{}) {
+	writer.WriteByte('?')
+}
+
+func (d Dialector) QuoteTo(writer clause.Writer, str string) {
+	var (
+		underQuoted, selfQuoted bool
+		continuousBacktick      int8
+		shiftDelimiter          int8
+	)
+
+	for _, v := range []byte(str) {
+		switch v {
+		case '`':
+			continuousBacktick++
+			if continuousBacktick == 2 {
+				writer.WriteString("``")
+				continuousBacktick = 0
+			}
+		case '.':
+			if continuousBacktick > 0 || !selfQuoted {
+				shiftDelimiter = 0
+				underQuoted = false
+				continuousBacktick = 0
+				writer.WriteString("`")
+			}
+			writer.WriteByte(v)
+			continue
+		default:
+			if shiftDelimiter-continuousBacktick <= 0 && !underQuoted {
+				writer.WriteByte('`')
+				underQuoted = true
+				if selfQuoted = continuousBacktick > 0; selfQuoted {
+					continuousBacktick -= 1
+				}
+			}
+
+			for ; continuousBacktick > 0; continuousBacktick -= 1 {
+				writer.WriteString("``")
+			}
+
+			writer.WriteByte(v)
+		}
+		shiftDelimiter++
+	}
+
+	if continuousBacktick > 0 && !selfQuoted {
+		writer.WriteString("``")
+	}
+	writer.WriteString("`")
 }
 
 var numericPlaceholder = regexp.MustCompile("@p(\\d+)")
 
-func (d d) Explain(sql string, vars ...interface{}) string {
-	for idx, v := range vars {
-		if b, ok := v.(bool); ok {
-			if b {
-				vars[idx] = 1
-			} else {
-				vars[idx] = 0
-			}
-		}
-	}
-
-	return logger.ExplainSQL(sql, numericPlaceholder, `'`, vars...)
+func (d Dialector) Explain(sql string, vars ...interface{}) string {
+	return logger.ExplainSQL(sql, nil, `'`, vars...)
 }
 
-func (d d) DataTypeOf(field *schema.Field) string {
+func (d Dialector) DataTypeOf(field *schema.Field) string {
 	switch field.DataType {
 	case schema.Bool:
 		return "bit"
@@ -213,10 +237,10 @@ func (d d) DataTypeOf(field *schema.Field) string {
 	return string(field.DataType)
 }
 
-func (d d) SavePoint(tx *gorm.DB, name string) error {
+func (d Dialector) SavePoint(tx *gorm.DB, name string) error {
 	return tx.Exec("SAVEPOINT " + name).Error
 }
 
-func (d d) RollbackTo(tx *gorm.DB, name string) error {
+func (d Dialector) RollbackTo(tx *gorm.DB, name string) error {
 	return tx.Exec("ROLLBACK TO SAVEPOINT " + name).Error
 }
