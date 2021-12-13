@@ -11,7 +11,7 @@ type Namer struct {
 }
 
 func ConvertNameToFormat(x string) string {
-	return strings.ToLower(x)
+	return strings.ToUpper(x)
 }
 
 func (n Namer) TableName(table string) (name string) {

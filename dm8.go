@@ -33,7 +33,7 @@ func (d Dialector) DummyTableName() string {
 }
 
 func (d Dialector) Initialize(db *gorm.DB) (err error) {
-
+	db.NamingStrategy = Namer{}
 	// register callbacks
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
 
