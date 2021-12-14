@@ -239,10 +239,11 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 				size = 256
 			}
 		}
-		if size > 0 && size <= 4000 {
+		if size > 0 && size <= 8188 {
 			return fmt.Sprintf("varchar(%d)", size)
 		}
-		return "text"
+		// TODO :text\clob 使用不了
+		return "varchar(8188)"
 	case schema.Time:
 		precision := ""
 		if field.Precision > 0 {
