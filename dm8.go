@@ -137,8 +137,9 @@ func (d Dialector) Migrator(db *gorm.DB) gorm.Migrator {
 	return Migrator{
 		Migrator: migrator.Migrator{
 			Config: migrator.Config{
-				DB:        db,
-				Dialector: d,
+				DB:                          db,
+				Dialector:                   d,
+				CreateIndexAfterCreateTable: true,
 			},
 		},
 		Dialector: d,
