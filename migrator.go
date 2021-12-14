@@ -78,7 +78,7 @@ func (m Migrator) CreateTable(values ...interface{}) (err error) {
 				if field.Comment != "" {
 					if err := m.DB.Exec(
 						"COMMENT ON COLUMN ?.? IS ?",
-						m.CurrentTable(stmt), clause.Column{Name: field.DBName}, gorm.Expr(m.Migrator.Dialector.Explain(stmt.SQL.String(), field.Comment)),
+						m.CurrentTable(stmt), clause.Column{Name: field.DBName}, gorm.Expr(m.Migrator.Dialector.Explain("?", field.Comment)),
 					).Error; err != nil {
 						return err
 					}
