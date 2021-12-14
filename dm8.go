@@ -28,10 +28,6 @@ func (d Dialector) Name() string {
 	return "dm"
 }
 
-func (d Dialector) DummyTableName() string {
-	return "DUAL"
-}
-
 func (d Dialector) Initialize(db *gorm.DB) (err error) {
 	db.NamingStrategy = Namer{}
 	// register callbacks
