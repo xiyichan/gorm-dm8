@@ -77,6 +77,30 @@ func (m Migrator) RenameColumn(value interface{}, oldName, newName string) error
 	})
 }
 
+func (m Migrator) CreateTable(values ...interface{}) (err error) {
+	if err = m.Migrator.CreateTable(values...); err != nil {
+		return
+	}
+	for _, value := range m.ReorderModels(values, false) {
+		if err = m.RunWithValue(value, func(stmt *gorm.Statement) error {
+			for _, field := range stmt.Schema.FieldsByDBName {
+				if field.Comment != "" {
+					if err := m.DB.Exec(
+						"COMMENT ON COLUMN ?.? IS ?",
+						m.CurrentTable(stmt), clause.Column{Name: field.DBName}, gorm.Expr(m.Migrator.Dialector.Explain("$1", field.Comment)),
+					).Error; err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}); err != nil {
+			return
+		}
+	}
+	return
+}
+
 func (m Migrator) HasTable(value interface{}) bool {
 	var count int64
 
